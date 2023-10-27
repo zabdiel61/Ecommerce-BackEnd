@@ -34,8 +34,12 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		return http
-				.authorizeHttpRequests((authz) -> authz.requestMatchers(HttpMethod.GET, "/api-compras/user/users")
-						.permitAll().anyRequest().authenticated())
+				.authorizeHttpRequests((authz) -> authz
+						.requestMatchers(HttpMethod.GET, "/user/users", "/product/products").permitAll()
+						.requestMatchers(HttpMethod.GET, "/user/{id}").hasAnyRole("USER", "ADMIN")
+						.requestMatchers(HttpMethod.POST, "/user").hasRole("ADMIN")
+						.requestMatchers("/user/**").hasRole("ADMIN")
+						.anyRequest().authenticated())
 				.addFilter(new JwtAuthenticationFilter(authenticationConfiguration.getAuthenticationManager()))
 				.addFilter(new JwtValidationFilter(authenticationConfiguration.getAuthenticationManager()))
 				.csrf(config -> config.disable()) // para evitar exploit, lo desabilitamos porque la sec va con jwt

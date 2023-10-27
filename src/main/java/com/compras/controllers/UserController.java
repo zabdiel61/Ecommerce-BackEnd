@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.compras.models.dto.UserDto;
 import com.compras.models.entities.User;
 import com.compras.services.UserService;
 
@@ -58,7 +59,7 @@ public class UserController {
 		if (result.hasErrors()) {
 			return validation(result);
 		}
-		Optional<User> userOptional = service.update(user, id);
+		Optional<UserDto> userOptional = service.update(user, id);
 		if (userOptional.isPresent()) {
 			return ResponseEntity.status(HttpStatus.CREATED).body(userOptional.orElseThrow());
 		}

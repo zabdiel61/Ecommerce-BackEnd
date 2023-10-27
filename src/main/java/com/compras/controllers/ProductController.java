@@ -11,7 +11,7 @@ import com.compras.models.entities.Product;
 import com.compras.services.ProductService;
 
 @RestController
-@RequestMapping("/api-compras/product")
+@RequestMapping("/product")
 public class ProductController {
 
 	@Autowired

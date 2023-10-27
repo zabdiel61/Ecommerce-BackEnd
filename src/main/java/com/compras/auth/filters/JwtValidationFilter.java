@@ -1,10 +1,13 @@
 package com.compras.auth.filters;
 
+import static com.compras.auth.TokenJwtConfig.HEADER_AUTHORIZATION;
+import static com.compras.auth.TokenJwtConfig.PREFIX_TOKEN;
+import static com.compras.auth.TokenJwtConfig.SECRET_KEY;
+
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Base64;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,10 +17,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
-import static com.compras.auth.TokenJwtConfig.*;
+import com.compras.auth.SimpleGrantedAuthorityJsonCreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,34 +41,38 @@ public class JwtValidationFilter extends BasicAuthenticationFilter {
 
 		if (header == null || !header.startsWith(PREFIX_TOKEN)) {
 			chain.doFilter(request, response);
+
 			return;
 		}
 
 		String token = header.replace(PREFIX_TOKEN, "");
 
-		byte[] tokenDecodeByte = Base64.getDecoder().decode(token);
-		String tokenDecode = new String(tokenDecodeByte);
-
-		String[] tokenArr = tokenDecode.split(":");
-		String secret = tokenArr[0];
-		String username = tokenArr[1];
-
 		try {
-			List<GrantedAuthority> authorities = new ArrayList<>();
-			authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
 
-			UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username,
-					null, authorities);
-			SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+			Claims claims = Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody();
+
+			Object authoritiesClaims = claims.get("authorities");
+			String username = claims.getSubject();
+
+			Collection<? extends GrantedAuthority> authorities = Arrays.asList(
+					new ObjectMapper().addMixIn(SimpleGrantedAuthority.class, SimpleGrantedAuthorityJsonCreator.class)
+							.readValue(authoritiesClaims.toString().getBytes(), SimpleGrantedAuthority[].class));
+
+			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null,
+					authorities);
+
+			SecurityContextHolder.getContext().setAuthentication(authentication);
 			chain.doFilter(request, response);
 		} catch (JwtException e) {
 			Map<String, String> body = new HashMap<>();
 			body.put("error", e.getMessage());
 			body.put("message", "El token JWT no es valido!");
+
 			response.getWriter().write(new ObjectMapper().writeValueAsString(body));
 			response.setStatus(403);
 			response.setContentType("application/json");
 		}
+
 	}
 
 }
